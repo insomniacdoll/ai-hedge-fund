@@ -77,7 +77,7 @@ def get_prices_crypto(ticker: str, start_date: str, end_date: str) -> list[Price
     c_prices = dat.history(period=f"{days_between}d", interval="1d")
 
     prices = []
-    for index, row in c_prices:
+    for index, row in c_prices.iterrows():
         price = Price(
             open=row['Open'],
             close=row['Close'],
