@@ -1,6 +1,10 @@
 import os
+from datetime import datetime
 import pandas as pd
 import requests
+import yfinance as yf
+from requests_ratelimiter import LimiterSession
+from pyrate_limiter import Duration, RequestRate, Limiter
 
 from data.cache import get_cache
 from data.models import (
@@ -50,6 +54,46 @@ def get_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
     _cache.set_prices(ticker, [p.model_dump() for p in prices])
     return prices
 
+
+def get_prices_crypto(ticker: str, start_date: str, end_date: str) -> list[Price]:
+    """Fetch price data from cache or API."""
+    # Check cache first
+    if cached_data := _cache.get_prices(ticker):
+        # Filter cached data by date range and convert to Price objects
+        filtered_data = [Price(**price) for price in cached_data if start_date <= price["time"] <= end_date]
+        if filtered_data:
+            return filtered_data
+        
+    # 计算start_date和end_date之间间隔的天数
+    start_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    days_between = (end_date - start_date).days
+    
+    history_rate = RequestRate(1, Duration.SECOND)
+    limiter = Limiter(history_rate)
+    ysession = LimiterSession(limiter=limiter)
+
+    dat = yf.Ticker(ticker, session=ysession)
+    c_prices = dat.history(period=f"{days_between}d", interval="1d")
+
+    prices = []
+    for index, row in c_prices:
+        price = Price(
+            open=row['Open'],
+            close=row['Close'],
+            high=row['High'],
+            low=row['Low'],
+            volume=int(row['Volume']),
+            time=index.strftime('%Y-%m-%d')  # 格式化时间为 'YYYY-mm-dd'
+        )
+        prices.append(price)
+
+    if not prices:
+        return []
+
+    # Cache the results as dicts
+    _cache.set_prices(ticker, [p.model_dump() for p in prices])
+    return prices
 
 def get_financial_metrics(
     ticker: str,

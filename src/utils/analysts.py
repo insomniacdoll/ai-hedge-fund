@@ -9,6 +9,7 @@ from agents.phil_fisher import phil_fisher_agent
 from agents.sentiment import sentiment_agent
 from agents.stanley_druckenmiller import stanley_druckenmiller_agent
 from agents.technicals import technical_analyst_agent
+from agents.technicals_crypto import technical_crypto_analyst_agent
 from agents.valuation import valuation_agent
 from agents.warren_buffett import warren_buffett_agent
 
@@ -68,6 +69,11 @@ ANALYST_CONFIG = {
         "display_name": "Valuation Analyst",
         "agent_func": valuation_agent,
         "order": 10,
+    },
+    "technical_crypto_analyst": {
+        "display_name": "Technical Crypto Analyst",
+        "agent_func": technical_crypto_analyst_agent,
+        "order": 11,
     },
 }
 
