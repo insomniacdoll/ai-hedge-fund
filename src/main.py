@@ -54,6 +54,7 @@ def run_hedge_fund(
     tickers: list[str],
     start_date: str,
     end_date: str,
+    is_crypto: bool,
     portfolio: dict,
     show_reasoning: bool = False,
     selected_analysts: list[str] = [],
@@ -83,6 +84,7 @@ def run_hedge_fund(
                     "portfolio": portfolio,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "is_crypto": is_crypto,
                     "analyst_signals": {},
                 },
                 "metadata": {
@@ -161,6 +163,9 @@ if __name__ == "__main__":
         help="Start date (YYYY-MM-DD). Defaults to 3 months before end date",
     )
     parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD). Defaults to today")
+    parser.add_argument(
+        "--is-crypto", action="store_true", required=False, default=False, help="Crypto tickers or Not"
+    )
     parser.add_argument("--show-reasoning", action="store_true", help="Show reasoning from each agent")
     parser.add_argument(
         "--show-agent-graph", action="store_true", help="Show the agent graph"
@@ -245,6 +250,8 @@ if __name__ == "__main__":
         except ValueError:
             raise ValueError("End date must be in YYYY-MM-DD format")
 
+    is_crypto = args.is_crypto 
+
     # Set the start and end dates
     end_date = args.end_date or datetime.now().strftime("%Y-%m-%d")
     if not args.start_date:
@@ -279,6 +286,7 @@ if __name__ == "__main__":
         tickers=tickers,
         start_date=start_date,
         end_date=end_date,
+        is_crypto=is_crypto,
         portfolio=portfolio,
         show_reasoning=args.show_reasoning,
         selected_analysts=selected_analysts,
