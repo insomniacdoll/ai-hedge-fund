@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import numpy as np
 
-from tools.api import get_prices, get_prices_crypto, prices_to_df
+from tools.api import get_prices, prices_to_df
 from utils.progress import progress
 
 
@@ -26,7 +26,6 @@ def technical_analyst_agent(state: AgentState):
     start_date = data["start_date"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    is_crypto = data["is_crypto"]
 
     # Initialize analysis for each ticker
     technical_analysis = {}
@@ -34,22 +33,12 @@ def technical_analyst_agent(state: AgentState):
     for ticker in tickers:
         progress.update_status("technical_analyst_agent", ticker, "Analyzing price data")
 
-        # print(f"is_crypto = {is_crypto}")
-
         # Get the historical price data
-        prices = []
-        if is_crypto:
-            prices = get_prices_crypto(
-                ticker=ticker,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        else:
-            prices = get_prices(
-                ticker=ticker,
-                start_date=start_date,
-                end_date=end_date,
-            )
+        prices = get_prices(
+            ticker=ticker,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         if not prices:
             progress.update_status("technical_analyst_agent", ticker, "Failed: No price data found")
