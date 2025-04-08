@@ -50,6 +50,7 @@ def get_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
     _cache.set_prices(ticker, [p.model_dump() for p in prices])
     return prices
 
+
 def get_financial_metrics(
     ticker: str,
     end_date: str,

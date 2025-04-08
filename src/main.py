@@ -250,7 +250,7 @@ if __name__ == "__main__":
         except ValueError:
             raise ValueError("End date must be in YYYY-MM-DD format")
 
-    is_crypto = args.is_crypto 
+    # is_crypto = args.is_crypto 
 
     # Set the start and end dates
     end_date = args.end_date or datetime.now().strftime("%Y-%m-%d")
