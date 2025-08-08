@@ -11,24 +11,24 @@ import json
 from langchain_core.messages import HumanMessage
 from src.graph.state import AgentState, show_agent_reasoning
 from src.utils.progress import progress
-
+from src.utils.api_key import get_api_key_from_state
 from src.tools.api import (
     get_financial_metrics,
     get_market_cap,
     search_line_items,
 )
 
-def valuation_agent(state: AgentState):
+def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analyst_agent"):
     """Run valuation across tickers and write signals back to `state`."""
 
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-
+    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
     valuation_analysis: dict[str, dict] = {}
 
     for ticker in tickers:
-        progress.update_status("valuation_agent", ticker, "Fetching financial data")
+        progress.update_status(agent_id, ticker, "Fetching financial data")
 
         # --- Historical financial metrics (pull 8 latest TTM snapshots for medians) ---
         financial_metrics = get_financial_metrics(
@@ -36,14 +36,15 @@ def valuation_agent(state: AgentState):
             end_date=end_date,
             period="ttm",
             limit=8,
+            api_key=api_key,
         )
         if not financial_metrics:
-            progress.update_status("valuation_agent", ticker, "Failed: No financial metrics found")
+            progress.update_status(agent_id, ticker, "Failed: No financial metrics found")
             continue
         most_recent_metrics = financial_metrics[0]
 
         # --- Fine‑grained line‑items (need two periods to calc WC change) ---
-        progress.update_status("valuation_agent", ticker, "Gathering line items")
+        progress.update_status(agent_id, ticker, "Gathering line items")
         line_items = search_line_items(
             ticker=ticker,
             line_items=[
@@ -56,9 +57,10 @@ def valuation_agent(state: AgentState):
             end_date=end_date,
             period="ttm",
             limit=2,
+            api_key=api_key,
         )
         if len(line_items) < 2:
-            progress.update_status("valuation_agent", ticker, "Failed: Insufficient financial line items")
+            progress.update_status(agent_id, ticker, "Failed: Insufficient financial line items")
             continue
         li_curr, li_prev = line_items[0], line_items[1]
 
@@ -99,9 +101,9 @@ def valuation_agent(state: AgentState):
         # ------------------------------------------------------------------
         # Aggregate & signal
         # ------------------------------------------------------------------
-        market_cap = get_market_cap(ticker, end_date)
+        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            progress.update_status("valuation_agent", ticker, "Failed: Market cap unavailable")
+            progress.update_status(agent_id, ticker, "Failed: Market cap unavailable")
             continue
 
         method_values = {
@@ -113,7 +115,7 @@ def valuation_agent(state: AgentState):
 
         total_weight = sum(v["weight"] for v in method_values.values() if v["value"] > 0)
         if total_weight == 0:
-            progress.update_status("valuation_agent", ticker, "Failed: All valuation methods zero")
+            progress.update_status(agent_id, ticker, "Failed: All valuation methods zero")
             continue
 
         for v in method_values.values():
@@ -145,17 +147,17 @@ def valuation_agent(state: AgentState):
             "confidence": confidence,
             "reasoning": reasoning,
         }
-        progress.update_status("valuation_agent", ticker, "Done")
+        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
 
     # ---- Emit message (for LLM tool chain) ----
-    msg = HumanMessage(content=json.dumps(valuation_analysis), name="valuation_agent")
+    msg = HumanMessage(content=json.dumps(valuation_analysis), name=agent_id)
     if state["metadata"].get("show_reasoning"):
         show_agent_reasoning(valuation_analysis, "Valuation Analysis Agent")
 
     # Add the signal to the analyst_signals list
-    state["data"]["analyst_signals"]["valuation_agent"] = valuation_analysis
+    state["data"]["analyst_signals"][agent_id] = valuation_analysis
 
-    progress.update_status("valuation_agent", None, "Done")
+    progress.update_status(agent_id, None, "Done")
     
     return {"messages": [msg], "data": data}
 
